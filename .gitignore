@@ -1,0 +1,41 @@
+# .NET build output
+**/bin/
+**/obj/
+artifacts/
+packages/
+
+# IDE and user settings
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Published binaries and archives
+*.exe
+*.dll
+*.pdb
+*.zip
+*.7z
+*.nupkg
+
+# Operational data and captures
+*.log
+*.jsonl
+*.pcap
+*.pcapng
+spool/
+logs/
+test-runs/
+
+# Secrets and environment-specific configuration
+.env
+.env.*
+!.env.example
+appsettings.Production.json
+appsettings.Local.json
+secrets.json
+
+# OS files
+Thumbs.db
+.DS_Store

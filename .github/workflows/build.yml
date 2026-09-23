@@ -1,0 +1,32 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore .\Surgard-Datalarm-Gateway.slnx
+
+      - name: Build
+        run: dotnet build .\Surgard-Datalarm-Gateway.slnx -c Release --no-restore
+
+      - name: Service smoke tests
+        run: dotnet run --project .\tests\SurGardReplacement.SmokeTests -c Release --no-build
+
+      - name: Monitor history tests
+        run: dotnet run --project .\tests\SurGardReplacement.Monitor.HistoryTests -c Release --no-build

@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SurGardReplacement.Monitor/SurGardReplacement.Monitor.csproj" />
+    <Project Path="src/SurGardReplacement/SurGardReplacement.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SurGardReplacement.Monitor.HistoryTests/SurGardReplacement.Monitor.HistoryTests.csproj" />
+    <Project Path="tests/SurGardReplacement.SmokeTests/SurGardReplacement.SmokeTests.csproj" />
+  </Folder>
+</Solution>

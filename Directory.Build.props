@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <Authors>Ivanov Nicolae</Authors>
+    <Copyright>Copyright (c) 2026 Ivanov Nicolae</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryType>git</RepositoryType>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+</Project>
