@@ -36,6 +36,14 @@ if ([string]$config.Andromeda.Prefix -notmatch '^.{7}$') {
 if ([int]$config.Diagnostics.StatusIntervalSeconds -lt 2) {
     $errors.Add("Diagnostics.StatusIntervalSeconds trebuie sa fie cel putin 2.")
 }
+$logRetentionDays = if ($null -eq $config.Diagnostics.LogRetentionDays) {
+    7
+} else {
+    [int]$config.Diagnostics.LogRetentionDays
+}
+if ($logRetentionDays -lt 1 -or $logRetentionDays -gt 365) {
+    $errors.Add("Diagnostics.LogRetentionDays trebuie sa fie intre 1 si 365.")
+}
 
 $keyVariable = [string]$config.Receiver.PresetKeyEnvironmentVariable
 $key = [Environment]::GetEnvironmentVariable($keyVariable, "Machine")
@@ -54,3 +62,4 @@ Write-Host "Receiver TCP: $($config.Receiver.BindAddress):$($config.Receiver.Tcp
 Write-Host "Andromeda: $($config.Andromeda.Host):$($config.Andromeda.Port)"
 Write-Host "Spool: $($config.Storage.SpoolDirectory)"
 Write-Host "Log: $($config.Diagnostics.LogDirectory)"
+Write-Host "Pastrare loguri: $logRetentionDays zile"

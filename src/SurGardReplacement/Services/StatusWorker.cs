@@ -37,9 +37,28 @@ public sealed class StatusWorker : BackgroundService
         Directory.CreateDirectory(directory);
         var statusPath = Path.Combine(directory, "status.json");
         var temporaryPath = statusPath + ".tmp";
+        var nextLogCleanupUtc = DateTimeOffset.MinValue;
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            var utcNow = DateTimeOffset.UtcNow;
+            if (utcNow >= nextLogCleanupUtc)
+            {
+                try
+                {
+                    var deleted = LogRetention.DeleteExpiredAuditLogs(
+                        directory, _options.LogRetentionDays, utcNow);
+                    if (deleted > 0)
+                        _logger.LogInformation("Deleted {Count} expired audit log files.", deleted);
+                }
+                catch (Exception exception)
+                {
+                    _logger.LogWarning(exception, "Could not remove expired audit log files.");
+                }
+
+                nextLogCleanupUtc = utcNow.AddDays(1);
+            }
+
             try
             {
                 var snapshot = _health.Snapshot(_spool.CountPending());

@@ -15,11 +15,11 @@ internal static class Program
 
         try
         {
-            var firstReceived = new DateTimeOffset(2026, 8, 11, 10, 0, 0, TimeSpan.Zero);
-            var secondReceived = firstReceived.AddMinutes(1);
-            var thirdReceived = firstReceived.AddDays(1);
-            var pendingOnlyReceived = thirdReceived.AddMinutes(1);
-            var blockedReceived = thirdReceived.AddMinutes(2);
+            var firstReceived = DateTimeOffset.UtcNow.AddSeconds(-10);
+            var secondReceived = firstReceived.AddSeconds(1);
+            var thirdReceived = firstReceived.AddSeconds(2);
+            var pendingOnlyReceived = firstReceived.AddSeconds(3);
+            var blockedReceived = firstReceived.AddSeconds(4);
 
             var firstLog = new List<string>
             {
@@ -128,8 +128,56 @@ internal static class Program
             Assert(grid.SelectedCells.Count == 0 && grid.CurrentCell is null,
                 "Signal rows must not remain selected or anchor the viewport.");
 
+            var oldCompletedReceived = DateTimeOffset.UtcNow.AddMinutes(-2);
+            processEvent.Invoke(form, [
+                Event("packet_accepted", Envelope(
+                    "old-completed", oldCompletedReceived, "6666E60200041"), oldCompletedReceived)
+            ]);
+            processEvent.Invoke(form, [
+                Event("andromeda_acknowledged", new
+                {
+                    id = "old-completed",
+                    contactId = "6666E60200041"
+                }, DateTimeOffset.UtcNow.AddSeconds(-31))
+            ]);
+            formType.GetMethod("PruneRows", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(form, [DateTimeOffset.UtcNow]);
+            Assert(!rows.Cast<object>().Any(row => Get(row, "MessageId") == "old-completed"),
+                "Completed rows older than 30 seconds must be removed.");
+
+            var recentReceived = DateTimeOffset.UtcNow.AddSeconds(-12);
+            processEvent.Invoke(form, [
+                Event("packet_accepted", Envelope(
+                    "recent-completed", recentReceived, "5555E60200041"), recentReceived)
+            ]);
+            processEvent.Invoke(form, [
+                Event("andromeda_acknowledged", new
+                {
+                    id = "recent-completed",
+                    contactId = "5555E60200041"
+                }, DateTimeOffset.UtcNow.AddSeconds(-5))
+            ]);
+            formType.GetMethod("PruneRows", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(form, [DateTimeOffset.UtcNow]);
+            Assert(rows.Cast<object>().Any(row => Get(row, "MessageId") == "recent-completed"),
+                "Recently completed rows must remain visible for 30 seconds.");
+
+            for (var index = 0; index < 1100; index++)
+            {
+                var received = DateTimeOffset.UtcNow.AddMilliseconds(index);
+                processEvent.Invoke(form, [
+                    Event("packet_accepted", Envelope(
+                        $"cap-{index}", received, $"{index % 10000:0000}E60200041"), received)
+                ]);
+            }
+            Application.DoEvents();
+
+            Assert(rows.Count == 1000, $"The monitor must keep at most 1000 rows, found {rows.Count}.");
+            Assert(Get(rows[0]!, "MessageId") == "cap-1099",
+                "The newest signal must remain visible after enforcing the limit.");
+
             Console.WriteLine(
-                "Monitor tests passed: history/blocked load, live follow, preserved history viewport, no selection.");
+                "Monitor tests passed: history, 30-second expiry, 1000-row cap, viewport and selection.");
             return 0;
         }
         catch (Exception exception)
@@ -154,9 +202,12 @@ internal static class Program
         packetHex = "00"
     };
 
-    private static string Event(string eventType, object details) => JsonSerializer.Serialize(new
+    private static string Event(
+        string eventType,
+        object details,
+        DateTimeOffset? timestampUtc = null) => JsonSerializer.Serialize(new
     {
-        timestampUtc = DateTimeOffset.UtcNow,
+        timestampUtc = timestampUtc ?? DateTimeOffset.UtcNow,
         eventType,
         details
     });

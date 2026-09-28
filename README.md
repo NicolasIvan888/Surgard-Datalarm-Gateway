@@ -21,6 +21,8 @@ modern replacement focused on reliable delivery and safe operations:
 - reconnect with bounded backoff;
 - Windows Service deployment and recovery configuration;
 - live desktop monitor, delivery delay, counters, disk status, and blacklist;
+- bounded monitor history (1,000 rows), with completed rows removed after 30 seconds;
+- automatic audit-log retention (7 days by default) without touching pending messages;
 - repeatable PowerShell installation, verification, and rollback scripts.
 
 ## Architecture
@@ -96,7 +98,9 @@ The committed configuration is deliberately isolated:
 - durable data: `C:\ProgramData\SurGardReplacement`.
 
 Change these values only in an environment-specific file that is excluded from
-source control.
+source control. `Diagnostics.LogRetentionDays` controls audit-log retention and
+defaults to `7`; pending spool files are retained until acknowledged and are
+never removed by this policy.
 
 ## Windows publishing
 

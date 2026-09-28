@@ -7,6 +7,9 @@ namespace SurGardReplacement.Monitor;
 
 internal sealed class MainForm : Form
 {
+    private const int MaximumVisibleRows = 1000;
+    private static readonly TimeSpan CompletedRowLifetime = TimeSpan.FromSeconds(30);
+
     private readonly string _dataDirectory;
     private readonly string _logDirectory;
     private readonly BindingList<SignalRow> _rows = [];
@@ -29,7 +32,7 @@ internal sealed class MainForm : Form
         _dataDirectory = dataDirectory;
         _logDirectory = Path.Combine(dataDirectory, "logs");
 
-        Text = "SurGard Replacement Monitor 0.3.0";
+        Text = "SurGard Replacement Monitor 0.3.1";
         MinimumSize = new Size(900, 520);
         Size = new Size(1160, 690);
         StartPosition = FormStartPosition.CenterScreen;
@@ -61,6 +64,7 @@ internal sealed class MainForm : Form
         _timer.Tick += (_, _) =>
         {
             ReadNewEvents();
+            PruneRows(DateTimeOffset.UtcNow);
             RefreshStatus();
         };
     }
@@ -226,6 +230,7 @@ internal sealed class MainForm : Form
             }
 
             LoadPendingMessages();
+            PruneRows(DateTimeOffset.UtcNow);
         }
         finally
         {
@@ -297,6 +302,7 @@ internal sealed class MainForm : Form
                     {
                         existing.Delivery = "În așteptare";
                         existing.Delay = string.Empty;
+                        existing.CompletedAtUtc = null;
                         continue;
                     }
 
@@ -313,7 +319,7 @@ internal sealed class MainForm : Form
                     };
 
                     _rowsById[id] = row;
-                    _rows.Insert(0, row);
+                    InsertLiveRow(row);
                 }
                 catch
                 {
@@ -394,6 +400,7 @@ internal sealed class MainForm : Form
                 {
                     row.Delivery = "Blocat";
                     row.Delay = "—";
+                    row.CompletedAtUtc = timestamp;
                 }
 
                 _rowsById[id] = row;
@@ -406,13 +413,17 @@ internal sealed class MainForm : Form
                 {
                     row.Delivery = "Confirmat";
                     row.Delay = $"{Math.Max(0, (timestamp - row.ReceivedAt).TotalSeconds):0.0} s";
+                    row.CompletedAtUtc = timestamp;
                 }
             }
             else if (eventType == "andromeda_delivery_failed")
             {
                 var id = GetString(details, "messageId", "MessageId");
                 if (id is not null && _rowsById.TryGetValue(id, out var row))
+                {
                     row.Delivery = "Eroare";
+                    row.CompletedAtUtc = null;
+                }
             }
         }
         catch
@@ -427,6 +438,7 @@ internal sealed class MainForm : Form
         var followLatest = firstDisplayedRow <= 0;
 
         _rows.Insert(0, row);
+        EnforceMaximumRows();
 
         if (_grid.Rows.Count == 0)
             return;
@@ -446,6 +458,46 @@ internal sealed class MainForm : Form
             // A binding/layout refresh can briefly make the row unavailable.
             // The next live insertion will restore the requested behavior.
         }
+    }
+
+    private void PruneRows(DateTimeOffset utcNow)
+    {
+        var completedBefore = utcNow - CompletedRowLifetime;
+        for (var index = _rows.Count - 1; index >= 0; index--)
+        {
+            var completedAt = _rows[index].CompletedAtUtc;
+            if (completedAt.HasValue && completedAt.Value <= completedBefore)
+                RemoveRowAt(index);
+        }
+
+        EnforceMaximumRows();
+    }
+
+    private void EnforceMaximumRows()
+    {
+        while (_rows.Count > MaximumVisibleRows)
+        {
+            // Prefer removing an old completed item so pending/error signals
+            // remain visible. The hard limit still protects monitor memory.
+            var removeIndex = -1;
+            for (var index = _rows.Count - 1; index >= 0; index--)
+            {
+                if (_rows[index].CompletedAtUtc.HasValue)
+                {
+                    removeIndex = index;
+                    break;
+                }
+            }
+
+            RemoveRowAt(removeIndex >= 0 ? removeIndex : _rows.Count - 1);
+        }
+    }
+
+    private void RemoveRowAt(int index)
+    {
+        var row = _rows[index];
+        _rowsById.Remove(row.MessageId);
+        _rows.RemoveAt(index);
     }
 
     private void ShowLatestSignal()

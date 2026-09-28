@@ -73,4 +73,7 @@ public sealed class DiagnosticsOptions
 
     [Range(2, 300)]
     public int StatusIntervalSeconds { get; init; } = 10;
+
+    [Range(1, 365)]
+    public int LogRetentionDays { get; init; } = 7;
 }

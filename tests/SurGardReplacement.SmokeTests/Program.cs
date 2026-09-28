@@ -117,6 +117,26 @@ try
         "UDP", "127.0.0.1:50001", packet, CancellationToken.None);
     if (!acknowledged || spool.CountPending() != 1)
         throw new InvalidOperationException("Removing an object from the blacklist did not restore delivery.");
+
+    var retentionPath = Path.Combine(testRoot, "retention-logs");
+    Directory.CreateDirectory(retentionPath);
+    await File.WriteAllTextAsync(Path.Combine(retentionPath, "surguard-2026-09-20.jsonl"), "old");
+    await File.WriteAllTextAsync(Path.Combine(retentionPath, "surguard-2026-09-22.jsonl"), "kept");
+    await File.WriteAllTextAsync(Path.Combine(retentionPath, "surguard-2026-09-28.jsonl"), "current");
+    await File.WriteAllTextAsync(Path.Combine(retentionPath, "surguard-invalid.jsonl"), "unknown");
+    await File.WriteAllTextAsync(Path.Combine(retentionPath, "status.json"), "{}");
+
+    var deleted = LogRetention.DeleteExpiredAuditLogs(
+        retentionPath,
+        7,
+        new DateTimeOffset(2026, 9, 28, 12, 0, 0, TimeSpan.Zero));
+    if (deleted != 1 || File.Exists(Path.Combine(retentionPath, "surguard-2026-09-20.jsonl")))
+        throw new InvalidOperationException("Expired audit log was not removed.");
+    if (!File.Exists(Path.Combine(retentionPath, "surguard-2026-09-22.jsonl")) ||
+        !File.Exists(Path.Combine(retentionPath, "surguard-2026-09-28.jsonl")) ||
+        !File.Exists(Path.Combine(retentionPath, "surguard-invalid.jsonl")) ||
+        !File.Exists(Path.Combine(retentionPath, "status.json")))
+        throw new InvalidOperationException("Log retention removed a protected or in-window file.");
 }
 finally
 {
@@ -125,4 +145,4 @@ finally
         Directory.Delete(testRoot, recursive: true);
 }
 
-Console.WriteLine("SurGard replacement smoke tests passed, including blacklist ACK/no-forward behavior.");
+Console.WriteLine("SurGard replacement smoke tests passed, including blacklist and 7-day log retention.");

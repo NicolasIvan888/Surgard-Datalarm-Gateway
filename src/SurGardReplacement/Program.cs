@@ -32,7 +32,8 @@ builder.Services
         !string.IsNullOrWhiteSpace(options.Storage.SpoolDirectory) &&
         !string.IsNullOrWhiteSpace(options.Storage.BlacklistFile) &&
         !string.IsNullOrWhiteSpace(options.Diagnostics.LogDirectory) &&
-        options.Diagnostics.StatusIntervalSeconds is >= 2 and <= 300,
+        options.Diagnostics.StatusIntervalSeconds is >= 2 and <= 300 &&
+        options.Diagnostics.LogRetentionDays is >= 1 and <= 365,
         "Receiver, Andromeda, storage, or diagnostic configuration is invalid.")
     .ValidateOnStart();
 

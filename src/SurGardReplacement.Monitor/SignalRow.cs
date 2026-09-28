@@ -14,6 +14,7 @@ internal sealed class SignalRow : INotifyPropertyChanged
     public required string Protocol { get; init; }
     public required string ContactId { get; init; }
     public required string Source { get; init; }
+    public DateTimeOffset? CompletedAtUtc { get; set; }
 
     public string Id => ContactId.Length >= 4 ? ContactId[..4] : ContactId;
     public string DateAndTime => ReceivedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss");

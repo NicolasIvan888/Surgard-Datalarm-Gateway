@@ -25,6 +25,8 @@ param(
     [string]$LogDirectory,
     [ValidateRange(2, 300)]
     [int]$StatusIntervalSeconds,
+    [ValidateRange(1, 365)]
+    [int]$LogRetentionDays,
     [switch]$RestartService,
     [string]$ServiceName = "SurGardReplacement",
     [string]$DisplayName = "SurGard DataAlarm Replacement"
@@ -62,6 +64,13 @@ if ($bound.ContainsKey("SpoolDirectory")) { $config.Storage.SpoolDirectory = $Sp
 if ($bound.ContainsKey("LogDirectory")) { $config.Diagnostics.LogDirectory = $LogDirectory }
 if ($bound.ContainsKey("StatusIntervalSeconds")) {
     $config.Diagnostics.StatusIntervalSeconds = $StatusIntervalSeconds
+}
+if ($bound.ContainsKey("LogRetentionDays")) {
+    if ($null -eq $config.Diagnostics.LogRetentionDays) {
+        $config.Diagnostics | Add-Member -NotePropertyName LogRetentionDays -NotePropertyValue $LogRetentionDays
+    } else {
+        $config.Diagnostics.LogRetentionDays = $LogRetentionDays
+    }
 }
 
 $backupPath = "$ConfigPath.$(Get-Date -Format 'yyyyMMdd-HHmmss').bak"
